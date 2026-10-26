@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Speed">
+<meta name="theme-color" content="#ffffff">
+<title>Speed</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<style>
+  :root {
+    --bg: #ffffff;
+    --text: #1c1c1e;
+    --secondary: #8e8e93;
+    --tertiary: #c7c7cc;
+    --fill: rgba(120, 120, 128, 0.12);
+    --hairline: rgba(60, 60, 67, 0.14);
+    --blue: #007aff;
+    --amber: #ff9500;
+    --green: #34c759;
+    --red: #ff3b30;
+    --sheet: rgba(250, 250, 252, 0.82);
+    --scrim: rgba(0, 0, 0, 0.18);
+    --sign-bg: #ffffff;
+    --sign-ink: #1c1c1e;
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --bg: #000000;
+    --text: #ffffff;
+    --secondary: #8e8e93;
+    --tertiary: #48484a;
+    --fill: rgba(120, 120, 128, 0.24);
+    --hairline: rgba(84, 84, 88, 0.6);
+    --blue: #0a84ff;
+    --amber: #ff9f0a;
+    --green: #30d158;
+    --red: #ff453a;
+    --sheet: rgba(30, 30, 32, 0.82);
+    --scrim: rgba(0, 0, 0, 0.45);
+    --sign-bg: #1c1c1e;
+    --sign-ink: #ffffff;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 100%/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: background-color 600ms ease, color 600ms ease;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+
+  .app {
+    position: fixed; inset: 0;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    padding:
+      max(16px, env(safe-area-inset-top))
+      max(20px, env(safe-area-inset-right))
+      max(20px, env(safe-area-inset-bottom))
+      max(20px, env(safe-area-inset-left));
+  }
+
+  /* Top bar */
+  .bar { display: flex; align-items: center; justify-content: space-between; height: 44px; }
+  .icon-btn {
+    width: 44px; height: 44px; margin-left: -10px;
+    display: grid; place-items: center; border-radius: 22px;
+    color: var(--secondary);
+    transition: transform 100ms ease-out, background-color 100ms ease-out;
+  }
+  .icon-btn:active { transform: scale(0.94); background: var(--fill); }
+  .gps { display: flex; align-items: center; gap: 6px; height: 44px; color: var(--red); transition: color 400ms ease; }
+  .gps.ok { color: var(--green); }
+  .gps svg { display: block; }
+
+  /* Speed */
+  .main {
+    container-type: size;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 0;
+  }
+  .speed {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+    font-weight: 200;
+    font-size: min(46cqw, 52cqh);
+    line-height: 0.9;
+    letter-spacing: -0.045em;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    color: var(--text);
+    transition: color 300ms ease;
+    margin-right: -0.04em; /* optically re-centre after negative tracking */
+  }
+  .speed.idle { color: var(--tertiary); }
+  .speed.over { color: var(--amber); }
+  .unit {
+    margin-top: min(1.6cqh, 10px);
+    font-size: max(15px, min(4.2cqw, 4.4cqh));
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    color: var(--secondary);
+  }
+
+  /* Speed limit sign (North American style) */
+  .limit {
+    margin-top: min(6cqh, 40px);
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    transition: transform 100ms ease-out;
+  }
+  .limit:active { transform: scale(0.96); }
+  .sign {
+    min-width: max(46px, min(13cqw, 13cqh));
+    padding: 4px 6px 5px;
+    border-radius: 7px;
+    background: var(--sign-bg);
+    color: var(--sign-ink);
+    box-shadow: inset 0 0 0 2.5px var(--sign-ink);
+    display: flex; flex-direction: column; align-items: center;
+    transition: box-shadow 300ms ease, color 300ms ease;
+  }
+  .sign small { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; line-height: 1.3; }
+  .sign b { font-size: max(20px, min(6cqw, 6cqh)); font-weight: 700; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .limit.over .sign { box-shadow: inset 0 0 0 2.5px var(--amber); color: var(--amber); }
+  .source { font-size: 12px; color: var(--secondary); letter-spacing: 0.01em; }
+
+  /* Trip stats */
+  .stats {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    border-top: 1px solid var(--hairline);
+    padding-top: 16px;
+  }
+  .stat { text-align: center; }
+  .stat .v {
+    font-size: clamp(22px, 4.2vmin, 34px);
+    font-weight: 300; letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums; line-height: 1.1;
+  }
+  .stat .l { font-size: 12px; color: var(--secondary); margin-top: 2px; letter-spacing: 0.01em; }
+
+  /* Start screen */
+  .start {
+    position: fixed; inset: 0; z-index: 30;
+    background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+    padding: 24px; text-align: center;
+    transition: opacity 350ms ease, visibility 350ms;
+  }
+  .start.gone { opacity: 0; visibility: hidden; pointer-events: none; }
+  .start .ghost {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+    font-weight: 200; font-size: min(30vw, 30vh); line-height: 0.9; letter-spacing: -0.045em;
+    color: var(--tertiary);
+  }
+  .pill {
+    height: 50px; padding: 0 30px; border-radius: 25px;
+    background: var(--blue); color: #fff;
+    font-size: 17px; font-weight: 600; letter-spacing: -0.01em;
+    transition: transform 100ms ease-out, opacity 100ms ease-out;
+  }
+  .pill:active { transform: scale(0.97); opacity: 0.85; }
+  .start p { margin: 0; max-width: 300px; font-size: 13px; color: var(--secondary); }
+
+  /* Settings sheet */
+  .scrim {
+    position: fixed; inset: 0; z-index: 40; background: var(--scrim);
+    opacity: 0; visibility: hidden; transition: opacity 300ms ease, visibility 300ms;
+  }
+  .scrim.open { opacity: 1; visibility: visible; }
+  .sheet {
+    position: fixed; z-index: 41; left: 50%; bottom: 0;
+    width: min(100%, 480px);
+    max-height: 88%;
+    overflow-y: auto;
+    transform: translate(-50%, 105%);
+    visibility: hidden;
+    transition: transform 420ms cubic-bezier(0.32, 0.72, 0, 1), visibility 0s linear 420ms;
+    background: var(--sheet);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    backdrop-filter: blur(30px) saturate(180%);
+    border-radius: 22px 22px 0 0;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.18);
+    padding: 8px 20px max(24px, env(safe-area-inset-bottom));
+  }
+  .sheet.open { transform: translate(-50%, 0); visibility: visible; transition: transform 420ms cubic-bezier(0.32, 0.72, 0, 1), visibility 0s; }
+  .grabber { width: 36px; height: 5px; border-radius: 3px; background: var(--tertiary); margin: 0 auto 12px; }
+  .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .sheet-head h2 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+  .done { color: var(--blue); font-weight: 600; font-size: 17px; padding: 8px 0 8px 12px; }
+  .section { margin-top: 18px; }
+  .section h3 { margin: 0 0 8px 4px; font-size: 13px; font-weight: 400; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.03em; }
+  .group { background: var(--fill); border-radius: 12px; overflow: hidden; }
+  .row {
+    display: flex; align-items: center; justify-content: space-between;
+    min-height: 48px; padding: 0 16px; font-size: 17px;
+  }
+  .row + .row { border-top: 1px solid var(--hairline); }
+  .row .hint { font-size: 13px; color: var(--secondary); }
+  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .chip {
+    height: 46px; border-radius: 12px; background: var(--fill);
+    font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums;
+    transition: transform 100ms ease-out, background-color 150ms ease, color 150ms ease;
+  }
+  .chip:active { transform: scale(0.95); }
+  .chip.on { background: var(--blue); color: #fff; }
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); padding: 2px; gap: 2px; background: var(--fill); border-radius: 10px; }
+  .seg button { height: 34px; border-radius: 8px; font-size: 14px; font-weight: 500; transition: background-color 150ms ease; }
+  .seg button.on { background: var(--bg); box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
+  .switch { position: relative; width: 51px; height: 31px; flex: none; }
+  .switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .switch span {
+    position: absolute; inset: 0; border-radius: 16px; background: var(--fill);
+    transition: background-color 200ms ease; pointer-events: none;
+  }
+  .switch span::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%;
+    background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    transition: transform 250ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .switch input:checked + span { background: var(--green); }
+  .switch input:checked + span::after { transform: translateX(20px); }
+  .reset { color: var(--red); width: 100%; text-align: left; }
+  .foot { margin: 18px 4px 0; font-size: 12px; color: var(--secondary); line-height: 1.5; }
+
+  .toast {
+    position: fixed; left: 50%; top: max(70px, calc(env(safe-area-inset-top) + 56px)); z-index: 20;
+    transform: translate(-50%, -8px); opacity: 0;
+    background: var(--fill); color: var(--secondary);
+    font-size: 13px; padding: 7px 14px; border-radius: 16px;
+    transition: opacity 250ms ease, transform 250ms ease; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sheet { transition: opacity 200ms ease; }
+    .sheet:not(.open) { opacity: 0; }
+    body, .speed, .sign { transition: none; }
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .sheet { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--bg); }
+  }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <header class="bar">
+    <button class="icon-btn" id="menuBtn" aria-label="Settings">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+        <path d="M3.5 6h15M3.5 11h15M3.5 16h15"/>
+      </svg>
+    </button>
+    <div class="gps" id="gps" aria-label="GPS signal">
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <g transform="rotate(-45 14 12)">
+          <rect x="11.5" y="9.5" width="5" height="5" rx="1"/>
+          <rect x="3" y="9.5" width="6" height="5" rx="0.8" fill="currentColor" fill-opacity="0.25"/>
+          <rect x="19" y="9.5" width="6" height="5" rx="0.8" fill="currentColor" fill-opacity="0.25"/>
+          <path d="M9 12h2.5M16.5 12H19"/>
+        </g>
+        <path d="M6 17.5a3.5 3.5 0 0 0 3.5 3.5M3 17.5a6.5 6.5 0 0 0 6.5 6.5"/>
+      </svg>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="speed idle" id="speed">0</div>
+    <div class="unit">km/h</div>
+    <button class="limit" id="limitBtn" aria-label="Speed limit">
+      <div class="sign"><small>MAX</small><b id="limitVal">50</b></div>
+      <div class="source" id="limitSrc">Manual</div>
+    </button>
+  </main>
+
+  <footer class="stats">
+    <div class="stat"><div class="v" id="avg">0</div><div class="l">Avg km/h</div></div>
+    <div class="stat"><div class="v" id="max">0</div><div class="l">Max km/h</div></div>
+    <div class="stat"><div class="v" id="dist">0.0</div><div class="l">km</div></div>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="start" id="start">
+  <div class="ghost">0</div>
+  <button class="pill" id="startBtn">Start Drive</button>
+  <p id="startNote">Turns on location for your speed and sound for the speed limit chime.</p>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<section class="sheet" id="sheet" aria-label="Settings">
+  <div class="grabber"></div>
+  <div class="sheet-head">
+    <h2>Settings</h2>
+    <button class="done" id="doneBtn">Done</button>
+  </div>
+
+  <div class="section">
+    <h3>Speed limit</h3>
+    <div class="group">
+      <div class="row">
+        <div>Detect automatically<div class="hint">Uses OpenStreetMap. Needs internet.</div></div>
+        <label class="switch"><input type="checkbox" id="autoToggle"><span></span></label>
+      </div>
+      <div class="row">
+        <div>Chime when over</div>
+        <label class="switch"><input type="checkbox" id="chimeToggle"><span></span></label>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>Manual limit <span id="manualHint" style="text-transform:none"></span></h3>
+    <div class="grid" id="chips"></div>
+  </div>
+
+  <div class="section">
+    <h3>Appearance</h3>
+    <div class="seg" id="themeSeg">
+      <button data-v="auto">Auto</button>
+      <button data-v="light">Light</button>
+      <button data-v="dark">Dark</button>
+    </div>
+    <div class="foot" style="margin-top:8px">Auto switches at sunrise and sunset, like Apple Maps.</div>
+  </div>
+
+  <div class="section">
+    <div class="group">
+      <div class="row"><button class="reset" id="resetBtn">Reset Trip</button></div>
+    </div>
+  </div>
+
+  <p class="foot" id="diag">Waiting for location…</p>
+</section>
+
+<script>
+(() => {
+  "use strict";
+
+  const $ = (id) => document.getElementById(id);
+  const DEMO = new URLSearchParams(location.search).has("demo");
+
+  // ---------- Settings (per-device conveniences) ----------
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem("speed." + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem("speed." + k, JSON.stringify(v)); } catch {} }
+  };
+  const settings = {
+    auto: store.get("auto", true),
+    chime: store.get("chime", true),
+    manual: store.get("manual", 50),
+    theme: store.get("theme", "auto"),
+    lastLat: store.get("lastLat", null),
+    lastLon: store.get("lastLon", null)
+  };
+  const save = (k, v) => { settings[k] = v; store.set(k, v); };
+
+  // ---------- Theme: Auto follows sunrise/sunset ----------
+  function sunTimes(date, lat, lng) {
+    const rad = Math.PI / 180, dayMs = 864e5, J1970 = 2440588, J2000 = 2451545;
+    const d = date.valueOf() / dayMs - 0.5 + J1970 - J2000;
+    const lw = rad * -lng, phi = rad * lat, e = rad * 23.4397;
+    const n = Math.round(d - 0.0009 - lw / (2 * Math.PI));
+    const ds = 0.0009 + lw / (2 * Math.PI) + n;
+    const M = rad * (357.5291 + 0.98560028 * ds);
+    const C = rad * (1.9148 * Math.sin(M) + 0.02 * Math.sin(2 * M) + 0.0003 * Math.sin(3 * M));
+    const L = M + C + rad * 102.9372 + Math.PI;
+    const dec = Math.asin(Math.sin(e) * Math.sin(L));
+    const Jtransit = J2000 + ds + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2 * L);
+    const w = Math.acos((Math.sin(rad * -0.833) - Math.sin(phi) * Math.sin(dec)) / (Math.cos(phi) * Math.cos(dec)));
+    const a = 0.0009 + (w + lw) / (2 * Math.PI) + n;
+    const Jset = J2000 + a + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2 * L);
+    const Jrise = Jtransit - (Jset - Jtransit);
+    const toDate = (j) => new Date((j + 0.5 - J1970) * dayMs);
+    return { sunrise: toDate(Jrise), sunset: toDate(Jset) };
+  }
+  const sysDark = matchMedia("(prefers-color-scheme: dark)");
+  function resolveTheme() {
+    if (settings.theme === "light" || settings.theme === "dark") return settings.theme;
+    if (settings.lastLat != null) {
+      const now = new Date();
+      const t = sunTimes(now, settings.lastLat, settings.lastLon);
+      if (!isNaN(t.sunrise) && !isNaN(t.sunset)) return now >= t.sunrise && now < t.sunset ? "light" : "dark";
+    }
+    return sysDark.matches ? "dark" : "light";
+  }
+  function applyTheme() {
+    const t = resolveTheme();
+    document.documentElement.dataset.theme = t;
+    document.querySelector('meta[name="theme-color"]').content = t === "dark" ? "#000000" : "#ffffff";
+    document.querySelectorAll("#themeSeg button").forEach(b => b.classList.toggle("on", b.dataset.v === settings.theme));
+  }
+  sysDark.addEventListener?.("change", applyTheme);
+  setInterval(applyTheme, 60000);
+  applyTheme();
+
+  // ---------- Sound: soft two-note chime ----------
+  let ctx = null;
+  function unlockAudio() {
+    try {
+      ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === "suspended") ctx.resume();
+      const b = ctx.createBuffer(1, 1, 22050), s = ctx.createBufferSource();
+      s.buffer = b; s.connect(ctx.destination); s.start(0);
+    } catch {}
+  }
+  function chime() {
+    if (!settings.chime || !ctx) return;
+    if (ctx.state === "suspended") ctx.resume();
+    const t0 = ctx.currentTime + 0.02;
+    [[1046.5, 0], [1318.5, 0.16]].forEach(([f, dt]) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine"; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t0 + dt);
+      g.gain.exponentialRampToValueAtTime(0.16, t0 + dt + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.9);
+      o.connect(g).connect(ctx.destination);
+      o.start(t0 + dt); o.stop(t0 + dt + 1);
+    });
+  }
+
+  // ---------- Keep the screen awake ----------
+  let wakeLock = null;
+  async function keepAwake() {
+    try { if ("wakeLock" in navigator && document.visibilityState === "visible") wakeLock = await navigator.wakeLock.request("screen"); } catch {}
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && started) { keepAwake(); if (ctx && ctx.state === "suspended") ctx.resume(); applyTheme(); }
+  });
+
+  // ---------- Trip state ----------
+  const trip = { dist: 0, moving: 0, max: 0 };
+  let last = null;           // last good fix {lat, lon, t}
+  let lastFixAt = 0, lastAcc = Infinity;
+  let speedKmh = 0;
+  let overArmed = true, isOver = false;
+  let started = false;
+
+  const R = 6371000;
+  function haversine(a, b) {
+    const r = Math.PI / 180, dLat = (b.lat - a.lat) * r, dLon = (b.lon - a.lon) * r;
+    const x = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(x));
+  }
+
+  function onPosition(p) {
+    const c = p.coords, now = p.timestamp || Date.now();
+    const fix = { lat: c.latitude, lon: c.longitude, t: now };
+    lastFixAt = Date.now(); lastAcc = c.accuracy;
+    const good = c.accuracy <= 25;
+
+    let v = (c.speed != null && c.speed >= 0) ? c.speed * 3.6 : null;
+    if (v == null && last && good) {
+      const dt = (now - last.t) / 1000;
+      if (dt > 0.5) v = haversine(last, fix) / dt * 3.6;
+    }
+    if (v == null) v = 0;
+    if (v < 2) v = 0;
+    speedKmh = v;
+
+    if (last && good) {
+      const dt = (now - last.t) / 1000;
+      if (dt > 0 && dt < 30 && v >= 3) {
+        const d = haversine(last, fix);
+        if (d / dt < 70) { trip.dist += d; trip.moving += dt; }  // ignore impossible jumps
+      }
+    }
+    if (good) {
+      trip.max = Math.max(trip.max, v);
+      last = fix;
+    } else if (!last) {
+      last = fix;
+    }
+
+    if (settings.lastLat == null || Math.abs(settings.lastLat - fix.lat) > 0.05 || Math.abs(settings.lastLon - fix.lon) > 0.05) {
+      save("lastLat", fix.lat); save("lastLon", fix.lon); applyTheme();
+    }
+
+    maybeLookupLimit(fix, v);
+    render();
+  }
+
+  function onPositionError(err) {
+    if (err.code === 1) showToast("Location is off for this app. Turn it on in Settings.", 6000);
+    render();
+  }
+
+  // ---------- Speed limit: auto (OpenStreetMap) with manual fallback ----------
+  const auto = { limit: null, at: 0, inFlight: false, lastAt: 0, lastPos: null };
+  const ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
+  const RANK = { motorway: 1, trunk: 2, primary: 3, secondary: 4, tertiary: 5, motorway_link: 6, trunk_link: 6, primary_link: 6, secondary_link: 7, tertiary_link: 7, unclassified: 8, residential: 9, living_street: 10, service: 11 };
+
+  function parseMax(s, highway) {
+    if (s) {
+      s = String(s).split(";")[0].trim();
+      const m = s.match(/^(\d+(?:\.\d+)?)\s*(mph|km\/h|kmh|kph)?$/i);
+      if (m) { let v = +m[1]; if (m[2] && /mph/i.test(m[2])) v = Math.round(v * 1.609); return Math.round(v); }
+      if (/living_street/i.test(s)) return 20;
+      if (/urban/i.test(s)) return 50;
+      if (/rural/i.test(s)) return 80;
+      if (/motorway/i.test(s)) return 100;
+    }
+    if (highway === "residential") return 50;   // BC default inside towns
+    return null;
+  }
+
+  async function fetchLimit(lat, lon, v) {
+    if (DEMO) return 50;
+    const q = `[out:json][timeout:8];way(around:20,${lat.toFixed(6)},${lon.toFixed(6)})[highway~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link)$"];out tags;`;
+    for (const url of ENDPOINTS) {
+      try {
+        const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 9000);
+        const r = await fetch(url + "?data=" + encodeURIComponent(q), { signal: ctl.signal });
+        clearTimeout(to);
+        if (!r.ok) continue;
+        const j = await r.json();
+        const ways = (j.elements || []).map(e => ({ rank: RANK[e.tags.highway] || 12, limit: parseMax(e.tags.maxspeed, e.tags.highway) })).filter(w => w.limit);
+        if (!ways.length) return null;
+        // Near intersections: at speed you're probably on the bigger road, slow you're probably on the smaller one
+        ways.sort((a, b) => v > 60 ? a.rank - b.rank : b.rank - a.rank);
+        return ways[0].limit;
+      } catch { /* try next mirror */ }
+    }
+    return undefined; // network failure
+  }
+
+  function maybeLookupLimit(fix, v) {
+    if (!settings.auto || auto.inFlight || !navigator.onLine) return;
+    const now = Date.now();
+    const moved = auto.lastPos ? haversine(auto.lastPos, fix) : Infinity;
+    if (now - auto.lastAt < 12000 || moved < 60) return;
+    auto.inFlight = true; auto.lastAt = now; auto.lastPos = fix;
+    fetchLimit(fix.lat, fix.lon, v).then(lim => {
+      if (lim) { auto.limit = lim; auto.at = Date.now(); }
+      else if (lim === null) { auto.limit = null; }
+      render();
+    }).finally(() => { auto.inFlight = false; });
+  }
+
+  function currentLimit() {
+    if (settings.auto && auto.limit && Date.now() - auto.at < 90000) return { v: auto.limit, src: "Auto" };
+    return { v: settings.manual, src: settings.auto ? "Manual · no data" : "Manual" };
+  }
+
+  // ---------- Render ----------
+  function render() {
+    const s = Math.round(speedKmh);
+    const sp = $("speed");
+    sp.textContent = s;
+    sp.classList.toggle("idle", !lastFixAt || s === 0);
+
+    const lim = currentLimit();
+    $("limitVal").textContent = lim.v;
+    $("limitSrc").textContent = lim.src;
+
+    const over = s > lim.v;
+    if (over && !isOver && overArmed) { chime(); overArmed = false; }
+    if (s <= lim.v - 3) overArmed = true;          // re-arm once you're clearly back under
+    isOver = over;
+    sp.classList.toggle("over", over);
+    $("limitBtn").classList.toggle("over", over);
+
+    $("avg").textContent = trip.moving > 5 ? Math.round(trip.dist / trip.moving * 3.6) : 0;
+    $("max").textContent = Math.round(trip.max);
+    $("dist").textContent = (trip.dist / 1000).toFixed(1);
+
+    renderGps();
+  }
+  function renderGps() {
+    const fresh = Date.now() - lastFixAt < 5000;
+    const ok = fresh && lastAcc <= 20;
+    $("gps").classList.toggle("ok", ok);
+    $("gps").setAttribute("aria-label", ok ? "GPS connected" : "GPS weak or off");
+    $("diag").textContent = lastFixAt
+      ? `GPS ${ok ? "connected" : "weak"} · accuracy ±${Math.round(lastAcc)} m · ${fresh ? "live" : "no recent fix"}`
+      : "Waiting for location…";
+  }
+  setInterval(renderGps, 1000);
+
+  let toastTimer;
+  function showToast(msg, ms = 3000) {
+    const t = $("toast"); t.textContent = msg; t.classList.add("show");
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), ms);
+  }
+
+  // ---------- Settings sheet ----------
+  const LIMITS = [30, 40, 50, 60, 70, 80, 90, 100, 110, 120];
+  $("chips").innerHTML = LIMITS.map(v => `<button class="chip" data-v="${v}">${v}</button>`).join("");
+  function syncSheet() {
+    $("autoToggle").checked = settings.auto;
+    $("chimeToggle").checked = settings.chime;
+    $("manualHint").textContent = settings.auto ? "· used when no road data" : "";
+    document.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", +c.dataset.v === settings.manual));
+    applyTheme();
+  }
+  function openSheet() { syncSheet(); $("scrim").classList.add("open"); $("sheet").classList.add("open"); }
+  function closeSheet() { $("scrim").classList.remove("open"); $("sheet").classList.remove("open"); }
+  $("menuBtn").addEventListener("click", openSheet);
+  $("limitBtn").addEventListener("click", openSheet);
+  $("doneBtn").addEventListener("click", closeSheet);
+  $("scrim").addEventListener("click", closeSheet);
+  $("autoToggle").addEventListener("change", e => { save("auto", e.target.checked); auto.lastAt = 0; syncSheet(); render(); });
+  $("chimeToggle").addEventListener("change", e => { save("chime", e.target.checked); if (e.target.checked) { unlockAudio(); chime(); } });
+  $("chips").addEventListener("click", e => {
+    const b = e.target.closest(".chip"); if (!b) return;
+    save("manual", +b.dataset.v); syncSheet(); render();
+  });
+  $("themeSeg").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    save("theme", b.dataset.v); applyTheme();
+  });
+  $("resetBtn").addEventListener("click", () => {
+    trip.dist = 0; trip.moving = 0; trip.max = 0; render(); closeSheet(); showToast("Trip reset");
+  });
+
+  // Drag the sheet down to dismiss
+  (() => {
+    const sh = $("sheet"); let y0 = null, dy = 0, t0 = 0;
+    sh.addEventListener("pointerdown", e => {
+      if (sh.scrollTop > 0 || e.target.closest("button, input, label")) return;
+      y0 = e.clientY; dy = 0; t0 = performance.now(); sh.style.transition = "none"; sh.setPointerCapture(e.pointerId);
+    });
+    sh.addEventListener("pointermove", e => {
+      if (y0 == null) return;
+      dy = e.clientY - y0;
+      const shown = dy > 0 ? dy : -(Math.abs(dy) * 0.55 * 40) / (40 + 0.55 * Math.abs(dy)); // rubber-band upward
+      sh.style.transform = `translate(-50%, ${shown}px)`;
+    });
+    const end = () => {
+      if (y0 == null) return;
+      const v = dy / Math.max(1, performance.now() - t0) * 1000;
+      sh.style.transition = ""; sh.style.transform = "";
+      if (dy > 120 || v > 600) closeSheet();
+      y0 = null;
+    };
+    sh.addEventListener("pointerup", end); sh.addEventListener("pointercancel", end);
+  })();
+
+  // ---------- Start ----------
+  function startLocation() {
+    if (DEMO) return startDemo();
+    if (!("geolocation" in navigator)) { showToast("Location isn't available here.", 6000); return; }
+    navigator.geolocation.watchPosition(onPosition, onPositionError, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+  }
+  $("startBtn").addEventListener("click", () => {
+    started = true;
+    unlockAudio();
+    keepAwake();
+    startLocation();
+    $("start").classList.add("gone");
+    render();
+  });
+
+  // ---------- Demo drive (?demo) for previewing without a car ----------
+  function startDemo() {
+    let lat = 49.2606, lon = -123.2460, t = Date.now(), i = 0;
+    const profile = [0,0,8,18,27,35,42,46,48,49,50,51,53,55,57,56,54,51,49,47,46,45,40,30,18,6,0,0,12,25,38,47,52,56,58,57,55,52,48,46];
+    setInterval(() => {
+      const v = profile[i % profile.length] + (Math.random() - 0.5);
+      i++; t += 1000;
+      const m = Math.max(0, v) / 3.6;
+      lat += (m * 0.6) / 111320; lon += (m * 0.8) / (111320 * Math.cos(lat * Math.PI / 180));
+      onPosition({ timestamp: t, coords: { latitude: lat, longitude: lon, accuracy: 5, speed: Math.max(0, v) / 3.6 } });
+    }, DEMO ? 1000 : 1000);
+  }
+
+  syncSheet();
+  render();
+
+  if ("serviceWorker" in navigator && !DEMO && location.protocol === "https:") {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>
